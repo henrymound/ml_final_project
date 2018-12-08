@@ -7,9 +7,9 @@ import sys
 import numpy as np
 import glob
 
-GLOBAL_IMAGE_SIZE = 224
+GLOBAL_IMAGE_SIZE = 100
 IMAGES_TO_PARSE = 10000000
-PREFIX_PATH = "classifier/signDatabasePublicFramesOnly/"
+PREFIX_PATH = "signDatabasePublicFramesOnly/"
 
 # Used to convert images and annotations to TensorFlow compatible bytestring
 def _bytes_feature(value):
@@ -149,7 +149,7 @@ def annotation_to_label(annotation):
 
 
 if __name__ == "__main__":
-    csv_path = "classifier/signDatabasePublicFramesOnly/allAnnotations.csv"
+    csv_path = "signDatabasePublicFramesOnly/allAnnotations.csv"
     images = extract_parameters(csv_path) # 7855 images
     images_shuffled = shuffle(images)
 

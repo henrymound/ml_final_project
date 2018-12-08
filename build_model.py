@@ -52,7 +52,7 @@ def model_fn(features, labels, mode, params):
 
     net = tf.identity(net, name="input_tensor")
 
-    net = tf.reshape(net, [-1, 224, 224, 3])
+    net = tf.reshape(net, [-1, 100, 100, 3])
 
     net = tf.identity(net, name="input_tensor_after")
 
@@ -121,7 +121,7 @@ model = tf.estimator.Estimator(
  )
 count = 0
 while (count < 100000):
-    model.train(input_fn=train_input_fn, steps=10)
+    model.train(input_fn=train_input_fn, steps=100)
     result = model.evaluate(input_fn=val_input_fn)
     print(result)
     print("Classification accuracy: {0:.2%}".format(result["accuracy"]))
