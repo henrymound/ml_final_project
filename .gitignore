@@ -1,9 +1,19 @@
 
 signDatabasePublicFramesOnly/*
-traffic-lights/bdd100k_images/*
-traffic-lights/bdd100k_lables/*
-traffic-lights/MNIST-data/*
+./traffic-lights/bdd100k_images/*
+./traffic-lights/bdd100k_lables/*
+./traffic-lights/MNIST-data/*
 *.tfrecords
 *.jpg
 *.local
+*.tfrecords
+./traffic-lights/validation.tfrecords
+./traffic-lights/yolov3.weights
+./train.tfrecords
+./yolo/yolov3.weights
+*.jpg
+*.weights
+*.jpg
+*.zip
+*.tfrecords
 *.tfrecords
