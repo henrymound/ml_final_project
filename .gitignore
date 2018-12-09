@@ -17,3 +17,4 @@ signDatabasePublicFramesOnly/*
 *.zip
 *.tfrecords
 *.tfrecords
+*.json
