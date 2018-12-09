@@ -1,14 +1,8 @@
-#############################################
-# Object detection - YOLO - OpenCV
-# Author : Arun Ponnusamy   (July 16, 2018)
-# Website : http://www.arunponnusamy.com
-############################################
-
-
 import cv2
 import argparse
 import numpy as np
 import tensorflow as tf
+from cnn_traffic_light import input_fn
 
 GLOBAL_IMAGE_SIZE = 50
 
@@ -111,7 +105,7 @@ for traffic_light_image in traffic_light_images:
     }
     encoded_data = tf.train.Example(features=tf.train.Features(feature=feature))
     encoded_traffic_light_images.append(encoded_data.SerializeToString())
-print(encoded_traffic_light_images)
+print(input_fn(encoded_traffic_light_images))
 
 #draw_prediction(image, class_ids[i], confidences[i], round(x), round(y), round(x+w), round(y+h))
 
