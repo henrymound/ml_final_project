@@ -73,7 +73,6 @@ for out in outs:
             confidences.append(float(confidence))
             boxes.append([x, y, w, h])
 
-
 indices = cv2.dnn.NMSBoxes(boxes, confidences, conf_threshold, nms_threshold)
 traffic_light_images = list()
 
