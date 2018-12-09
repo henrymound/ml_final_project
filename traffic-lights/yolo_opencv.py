@@ -83,6 +83,7 @@ for i in indices:
     y = box[1]
     w = box[2]
     h = box[3]
+    draw_prediction(image, class_ids[i], confidences[i], round(x), round(y), round(x+w), round(y+h))
     if class_ids[i] == 9: # If one of the detected objects is a traffic light
         y2 = int(y + h)
         x2 = int(x + w)
@@ -106,10 +107,9 @@ for traffic_light_image in traffic_light_images:
     encoded_traffic_light_images.append(encoded_data.SerializeToString())
 print(input_fn(encoded_traffic_light_images))
 
-#draw_prediction(image, class_ids[i], confidences[i], round(x), round(y), round(x+w), round(y+h))
 
-#cv2.imshow("object detection", image)
-#cv2.waitKey()
+cv2.imshow("object detection", image)
+cv2.waitKey()
 
-#cv2.imwrite("object-detection.jpg", image)
-#cv2.destroyAllWindows()
+cv2.imwrite("object-detection.jpg", image)
+cv2.destroyAllWindows()
