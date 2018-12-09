@@ -6,6 +6,7 @@ from cnn_traffic_light import input_fn
 
 GLOBAL_IMAGE_SIZE = 50
 
+# Adopted from https://github.com/arunponnusamy/object-detection-opencv
 # Used to convert images and annotations to TensorFlow compatible bytestring
 def _bytes_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
