@@ -3,7 +3,7 @@ import sys
 
 import numpy as np
 import tensorflow as tf
-from cnn_traffic_light import input_fn
+from cnn_traffic_light import input_fn, parser_decode
 from tensorflow.contrib import predictor
 import cv2
 import argparse
@@ -100,17 +100,17 @@ def segment_image(image_path):
     string_images = []
     # Loop through the found traffic lights and process them
     for traffic_light_image in traffic_light_images:
-
         cv2.cvtColor(traffic_light_image, cv2.COLOR_BGR2RGB)
         processed_img = cv2.resize(traffic_light_image, (GLOBAL_IMAGE_SIZE, GLOBAL_IMAGE_SIZE))
         string_img = _bytes_feature(processed_img.tostring())
-        string_images.append(string_img)
+        string_images.append(string_img.SerializeToString())
         feature = {
             'image_raw': string_img
         }
         encoded_data = tf.train.Example(features=tf.train.Features(feature=feature))
         encoded_traffic_light_images.append(encoded_data)
-    return encoded_traffic_light_images
+
+    return string_images
     #print(encoded_traffic_light_images)
     #draw_prediction(image, class_ids[i], confidences[i], round(x), round(y), round(x+w), round(y+h), classes)
 
@@ -121,16 +121,27 @@ def segment_image(image_path):
     # cv2.destroyAllWindows()
 
 def make_color_prediction(encoded_image_list):
+    predictors = list()
+    for string_img in encoded_image_list:
+        predictors.append(parser_decode(string_img))
+
+
     full_model_dir = 'model2/test/'
     with tf.Session() as sess:
         predict_fn = predictor.from_saved_model('output_model/1544369743')
         #model_input = tf.train.Example(features=tf.train.Features( feature={"words": tf.train.Feature(int64_list=tf.train.Int64List(value=features_test_set)) }))
         #model_input = model_input.SerializeToString()
-        predictions = predict_fn({"x": encoded_image_list[0]}.SerializeToString())
+        #predictions = predict_fn(encoded_image_list[0])
+        #print(predictors[0])
+        #feed_dict = {'x': [predictors[0]]}
+        #predictions = predict_fn(feed_dict)
+        #print(predictions)
+        #classification = tf.run(y, feed_dict)
+        #print(classification)
 
 if __name__=="__main__":
     traffic_lights=segment_image(sys.argv[1])
     new_traffic_lights = []
     for idx, img in enumerate(traffic_lights):
         new_traffic_lights.append(cnn.prod_parse(img))
-    make_color_prediction(traffic_lights)
+    make_color_prediction(new_traffic_lights)

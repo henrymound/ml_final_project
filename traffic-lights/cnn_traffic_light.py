@@ -110,6 +110,16 @@ def parser(record):
   print({'x': image})
   return {'x': image}, label
 
+def parser_decode(record):
+  keys_to_features = {
+    "image_raw": tf.FixedLenFeature([], tf.string),
+  }
+  parsed = tf.parse_single_example(record, keys_to_features)
+  image = tf.decode_raw(parsed["image_raw"], tf.uint8)
+  image = tf.cast(image, tf.float32)
+  print({'x': image})
+  return {'x': image}
+
 def prod_parse(record):
   keys_to_features = {
       "image_raw": tf.FixedLenFeature([], tf.string),
