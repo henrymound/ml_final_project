@@ -1,6 +1,3 @@
-
-
-
 import cv2
 import csv
 from PIL import Image
@@ -14,7 +11,6 @@ from os import listdir
 from math import ceil
 
 GLOBAL_IMAGE_SIZE = 50
-IMAGES_TO_PARSE = 10000000
 PREFIX_PATH = "classifier/signDatabasePublicFramesOnly/"
 LABELS_TRAIN_PATH = "bdd100k_labels/labels/bdd100k_labels_images_train.json"
 IMAGES_TRAIN_PATH = 'bdd100k_images/images/100k/train/'

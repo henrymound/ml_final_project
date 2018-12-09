@@ -20,22 +20,22 @@ def cnn_model_fn(features, labels, mode):
   # Convolutional Layer #1
   conv1 = tf.layers.conv2d(
       inputs=input_layer,
-      filters=10,
+      filters=20,
       kernel_size=[10, 10],
-      padding="valid",
+      padding="same",
       activation=tf.nn.relu)
 
   # With "valid" padding, this should output a
   # [-1, 40, 40, 10]
   # Pooling Layer #1
-  pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=2)
+  pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=5)
   # [-1, 20, 20, 10]
   # Convolutional Layer #2 and Pooling Layer #2
   conv2 = tf.layers.conv2d(
       inputs=pool1,
-      filters=20,
-      kernel_size=[10, 10],
-      padding="valid",
+      filters=40,
+      kernel_size=[2, 2],
+      padding="same",
       activation=tf.nn.relu)
 
   # With "valid" padding, should output:
@@ -43,12 +43,12 @@ def cnn_model_fn(features, labels, mode):
   pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
   #[-1, 5, 5, 20]
   # Dense Layer
-  pool2_flat = tf.reshape(pool2, [-1, 5 * 5 * 20])
+  pool2_flat = tf.reshape(pool2, [-1, 5 * 5 * 40])
   dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu)
   dropout = tf.layers.dropout(
-      inputs=dense, rate=0.4, training=mode == tf.estimator.ModeKeys.TRAIN)
+      inputs=dense, rate=0.3, training=mode == tf.estimator.ModeKeys.TRAIN)
   # Logits Layer
-  logits = tf.layers.dense(inputs=dropout, units=3)
+  logits = tf.layers.dense(inputs=dropout, units=4)
   predictions = {
       # Generate predictions (for PREDICT and EVAL mode)
       "classes": tf.argmax(input=logits, axis=1),
@@ -80,7 +80,6 @@ def cnn_model_fn(features, labels, mode):
 
 
 def input_fn(filenames):
-  print("input_fn")
   dataset = tf.data.TFRecordDataset(filenames=filenames, num_parallel_reads=40)
   # dataset = dataset.apply(
   #     tf.contrib.data.shuffle_and_repeat(1024, 1)
@@ -94,10 +93,10 @@ def input_fn(filenames):
   return dataset
 
 def train_input_fn():
-  return input_fn(filenames=["train.tfrecords"])
+  return input_fn(filenames=["train_none.tfrecords"])
 
 def eval_input_fn():
-  return input_fn(filenames=["validation.tfrecords"])
+  return input_fn(filenames=["validation_none.tfrecords"])
 
 def parser(record):
   keys_to_features = {
@@ -107,49 +106,52 @@ def parser(record):
   parsed = tf.parse_single_example(record, keys_to_features)
   image = tf.decode_raw(parsed["image_raw"], tf.uint8)
   image = tf.cast(image, tf.float32)
-  #image = tf.reshape(image, shape=[224, 224, 3])
   label = tf.cast(parsed["label"], tf.int32)
+  print({'x': image})
   return {'x': image}, label
 
-if __name__ == "__main__":
-    # Load training and eval data
-    mnist = tf.contrib.learn.datasets.load_dataset("mnist")
-    train_data = mnist.train.images # Returns np.array
+def prod_parse(record):
+  keys_to_features = {
+      "image_raw": tf.FixedLenFeature([], tf.string),
+  }
+  parsed = tf.parse_single_example(record, keys_to_features)
+  image = tf.decode_raw(parsed["image_raw"], tf.uint8)
+  image = tf.cast(image, tf.float32)
+  return image
 
-    train_labels = np.asarray(mnist.train.labels, dtype=np.int32)
-    eval_data = mnist.test.images # Returns np.array
-    eval_labels = np.asarray(mnist.test.labels, dtype=np.int32)
+
+def serving_input_receiver_fn():
+  """Build the serving inputs."""
+  # The outer dimension (None) allows us to batch up inputs for
+  # efficiency. However, it also means that if we want a prediction
+  # for a single instance, we'll need to wrap it in an outer list.
+  inputs = {"x": tf.placeholder(dtype=tf.float32)}
+  return tf.estimator.export.ServingInputReceiver(inputs, inputs)
+
+
+def main():
+
 
     # Create the Estimator
-    mnist_classifier = tf.estimator.Estimator(
-        model_fn=cnn_model_fn, model_dir="model/test")
+    classifier = tf.estimator.Estimator(
+        model_fn=cnn_model_fn, model_dir="model2/test")
 
     # Set up logging for predictions
     tensors_to_log = {"probabilities": "softmax_tensor"}
     logging_hook = tf.train.LoggingTensorHook(
         tensors=tensors_to_log, every_n_iter=50)
 
-    # Train the model
-    # train_input_fn = tf.estimator.inputs.numpy_input_fn(
-    #   x={"x": train_data},
-    #   y=train_labels,
-    #   batch_size=100,
-    #   num_epochs=None,
-    #   shuffle=True)
-    # mnist_classifier.train(
-    #   input_fn=train_input_fn,
-    #   steps=1000,
-    #   hooks=[logging_hook])
-    #
-    # # Evaluate the model and print results
-    # eval_input_fn = tf.estimator.inputs.numpy_input_fn(
-    #   x={"x": eval_data},
-    #   y=eval_labels,
-    #   num_epochs=1,
-    #   shuffle=False)
+    i = 0
+    while i < 1:
+        classifier.train(input_fn=train_input_fn, steps=1)
+        eval_results = classifier.evaluate(input_fn=eval_input_fn)
+        print(eval_results)
+        i = i + 1
 
-    mnist_classifier.train(input_fn=train_input_fn, steps=1000)
-    eval_results = mnist_classifier.evaluate(input_fn=eval_input_fn)
-    print(eval_results)
-    # if __name__ == "__main__":
-    #   tf.app.run()
+    export_dir = classifier.export_savedmodel(
+        export_dir_base="output_model",
+        serving_input_receiver_fn=serving_input_receiver_fn)
+
+
+if __name__ == "__main__":
+  main()
