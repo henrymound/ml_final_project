@@ -6,18 +6,15 @@ from __future__ import print_function
 import numpy as np
 import tensorflow as tf
 
-tf.logging.set_verbosity(tf.logging.INFO)
-
-# Our application logic will be added here
-
 
 def cnn_model_fn(features, labels, mode):
   """Model function for CNN."""
-  # Input Layer
+
+
+  # Input Layer - (50x50 pixels and 3 color channels)
   input_layer = tf.reshape(features["x"], [-1, 50, 50, 3])
 
-
-  # Convolutional Layer #1
+  # Convolutional Layer #1 (20 channels, 10x10 filter, same padding, stride=1)
   conv1 = tf.layers.conv2d(
       inputs=input_layer,
       filters=20,
@@ -25,11 +22,10 @@ def cnn_model_fn(features, labels, mode):
       padding="same",
       activation=tf.nn.relu)
 
-  # With "valid" padding, this should output a
-  # [-1, 40, 40, 10]
-  # Pooling Layer #1
+  # Pool layer 1: 2x2 pool size, strides=5
   pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], strides=5)
-  # [-1, 20, 20, 10]
+
+
   # Convolutional Layer #2 and Pooling Layer #2
   conv2 = tf.layers.conv2d(
       inputs=pool1,
@@ -41,13 +37,18 @@ def cnn_model_fn(features, labels, mode):
   # With "valid" padding, should output:
   # [-1, 10, 10, 20]
   pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], strides=2)
-  #[-1, 5, 5, 20]
-  # Dense Layer
+
+  # Unroll the layer into a single column
   pool2_flat = tf.reshape(pool2, [-1, 5 * 5 * 40])
+
+  # Fully connected layer (1024 units)
   dense = tf.layers.dense(inputs=pool2_flat, units=1024, activation=tf.nn.relu)
+
+  # Implement dropout at rate of 0.3 (30% nodes dropped each time)
   dropout = tf.layers.dropout(
       inputs=dense, rate=0.3, training=mode == tf.estimator.ModeKeys.TRAIN)
-  # Logits Layer
+
+  # Logits/Output layer
   logits = tf.layers.dense(inputs=dropout, units=4)
   predictions = {
       # Generate predictions (for PREDICT and EVAL mode)
@@ -63,7 +64,7 @@ def cnn_model_fn(features, labels, mode):
   # Calculate Loss (for both TRAIN and EVAL modes)
   loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits)
 
-  # Configure the Training Op (for TRAIN mode)
+  # Training configuration (minimize via gradient descent with alpha = .001)
   if mode == tf.estimator.ModeKeys.TRAIN:
     optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001)
     train_op = optimizer.minimize(
@@ -71,7 +72,7 @@ def cnn_model_fn(features, labels, mode):
         global_step=tf.train.get_global_step())
     return tf.estimator.EstimatorSpec(mode=mode, loss=loss, train_op=train_op)
 
-  # Add evaluation metrics (for EVAL mode)
+  # Evaluation metrics
   eval_metric_ops = {
       "accuracy": tf.metrics.accuracy(
           labels=labels, predictions=predictions["classes"])}
@@ -80,6 +81,7 @@ def cnn_model_fn(features, labels, mode):
 
 
 def input_fn(filenames):
+  """Configure the dataset for use within the model."""
   dataset = tf.data.TFRecordDataset(filenames=filenames, num_parallel_reads=40)
   # dataset = dataset.apply(
   #     tf.contrib.data.shuffle_and_repeat(1024, 1)
@@ -87,18 +89,20 @@ def input_fn(filenames):
   dataset = dataset.apply(
       tf.contrib.data.map_and_batch(parser, 32)
   )
-  #dataset = dataset.map(parser, num_parallel_calls=12)
-  #dataset = dataset.batch(batch_size=1000)
+
   dataset = dataset.prefetch(buffer_size=2)
   return dataset
 
 def train_input_fn():
+  """Return the input_fn function with the training output file name as its argument"""
   return input_fn(filenames=["train_none.tfrecords"])
 
 def eval_input_fn():
+  """Return the input_fn function with the validation output file name as its argument"""
   return input_fn(filenames=["validation_none.tfrecords"])
 
 def parser(record):
+  """Called by input_fn to format examples properly"""
   keys_to_features = {
       "image_raw": tf.FixedLenFeature([], tf.string),
       "label":     tf.FixedLenFeature([], tf.int64)
@@ -111,6 +115,8 @@ def parser(record):
   return {'x': image}, label
 
 def prod_parse(record):
+  """Helper function to be called by a script passing input to this model for
+     predictions"""
   keys_to_features = {
       "image_raw": tf.FixedLenFeature([], tf.string),
   }
@@ -121,17 +127,16 @@ def prod_parse(record):
 
 
 def serving_input_receiver_fn():
-  """Build the serving inputs."""
-  # The outer dimension (None) allows us to batch up inputs for
-  # efficiency. However, it also means that if we want a prediction
-  # for a single instance, we'll need to wrap it in an outer list.
+  """Build the serving inputs for predictions (not training or validation)"""
   inputs = {"x": tf.placeholder(dtype=tf.float32)}
   return tf.estimator.export.ServingInputReceiver(inputs, inputs)
 
 
 def main():
+    """Create, train, and save the network"""
 
-
+    tf.logging.set_verbosity(tf.logging.INFO)
+    
     # Create the Estimator
     classifier = tf.estimator.Estimator(
         model_fn=cnn_model_fn, model_dir="model2/test")
@@ -141,6 +146,7 @@ def main():
     logging_hook = tf.train.LoggingTensorHook(
         tensors=tensors_to_log, every_n_iter=50)
 
+    # Training
     i = 0
     while i < 1:
         classifier.train(input_fn=train_input_fn, steps=1)
@@ -148,6 +154,7 @@ def main():
         print(eval_results)
         i = i + 1
 
+    # Export the network
     export_dir = classifier.export_savedmodel(
         export_dir_base="output_model",
         serving_input_receiver_fn=serving_input_receiver_fn)

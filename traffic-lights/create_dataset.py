@@ -11,21 +11,18 @@ from os import listdir
 from math import ceil
 
 GLOBAL_IMAGE_SIZE = 50
+IMAGES_TO_PARSE = 10000000
 PREFIX_PATH = "classifier/signDatabasePublicFramesOnly/"
 LABELS_TRAIN_PATH = "bdd100k_labels/labels/bdd100k_labels_images_train.json"
 IMAGES_TRAIN_PATH = 'bdd100k_images/images/100k/train/'
 LABELS_VALIDATION_PATH = "bdd100k_labels/labels/bdd100k_labels_images_val.json"
 IMAGES_VALIDATION_PATH = 'bdd100k_images/images/100k/val/'
 
-# Used to convert images and annotations to TensorFlow compatible bytestring
-def _bytes_feature(value):
-    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
-
-def _int64_feature(value):
-    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
-
 
 def extract_data():
+    """ Extra Berkeley Deep Drive training/validation examples and export them
+        as TensorFlow-compatible examples in .tfrecords files"""
+
     print("\n****Berkeley Deep Drive Data Extraction****\n")
     print("Using global image size of %i x %i pixels" %(GLOBAL_IMAGE_SIZE, GLOBAL_IMAGE_SIZE) )
 
@@ -35,7 +32,7 @@ def extract_data():
     print("*Collecting image filenames*")
     train_images = get_image_filenames(IMAGES_TRAIN_PATH)
     print("*Formatting and encoding images and labels*")
-    prep_image_set('train.tfrecords', train_images, IMAGES_TRAIN_PATH, labels_dict)
+    prep_image_set('train_none.tfrecords', train_images, IMAGES_TRAIN_PATH, labels_dict)
     print("*Training data extracted*\n")
 
     print("**Gathering labels for validation set:**")
@@ -44,31 +41,40 @@ def extract_data():
     print("*Collecting image filenames*")
     validation_images = get_image_filenames(IMAGES_VALIDATION_PATH)
     print("*Formatting and encoding images and labels*")
-    prep_image_set('validation.tfrecords', validation_images,
+    prep_image_set('validation_none.tfrecords', validation_images,
         IMAGES_VALIDATION_PATH, validation_labels_dict)
     print("*Validation data extracted*")
 
     print("\n*** Data Extraction Complete ***")
     print("Use train.tfrecords and validation.tfrecords")
 
+"""Used to convert images and annotations to TensorFlow compatible bytestrings"""
+def _bytes_feature(value):
+    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
+def _int64_feature(value):
+    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+
 def prep_image_set(set_name, images, images_path, labels):
+    """Iterate through a set of images and write an output file with examples
+    and labels for each instance of traffic signs in TensorFlow-compative format
+    in a .tfrecords file named set_name"""
     image_set = []
     writer = tf.python_io.TFRecordWriter(set_name)
 
-    image_count = len(images)
-    image_counter = 0
+    image_counter = 0 # Number of images processed
     for image in images:
         idx = 0
-        #print("progress", test)
         while True:
             if edit_filename(image, idx) not in labels:
                 break;
             label = labels[edit_filename(image, idx)]
-            if label['color'] == "none":
-                idx = idx + 1
-                continue
             output_label = format_label(label)
-            writer.write(load_image(image, images_path + image, label))
+            try:
+                output = load_image(image, images_path + image, label)
+                writer.write(output)
+            except:
+                break
             image_set.append(load_image(image, images_path + image, label))
             idx = idx + 1
         image_counter = image_counter + 1
@@ -80,7 +86,8 @@ def prep_image_set(set_name, images, images_path, labels):
 
 
 def load_image(image, image_path, label):
-
+    """Crop intput image according to label and global image size. Then encode
+    it in proper format. Called by prep_image_set()"""
     x1 = int(label['x1'])
     y1 = int(label['y1'])
     x2 = int(label['x2'])
@@ -110,29 +117,20 @@ def load_image(image, image_path, label):
     return encoded_data.SerializeToString()
 
 def format_label(label):
+    """Return numerical label for light color given annotation as input"""
     color = label['color']
 
-    conversion_dict = {'red': '0', 'green': '1', 'yellow': '2'}
+    conversion_dict = {'red': '0', 'green': '1', 'yellow': '2', 'none': '3'}
     return conversion_dict[color]
 
 def get_image_filenames(data_path):
+    """Get list of all image names in file (training/validation sets are in
+    different files)"""
     return listdir(data_path)
 
 def get_labels(labels_path):
-    """
-    Make a dictionary that holds label data:
-        {original-file-name_%idx%.jpg :
-                {
-                    color:
-                    x1:
-                    y1:
-                    x2:
-                    y2:
-                    occludeded:
-                    truncated:
-                }}
-
-    """
+    """Load image label file and create a dictionary of labels for each image
+    name as key."""
     with open(labels_path) as f:
         data = json.load(f)
 
@@ -159,6 +157,8 @@ def get_labels(labels_path):
     return label_dict
 
 def edit_filename(name, idx):
+    """Change file extension to account for multiple traffic light examples per
+        file"""
     no_extension = name[:-4]
     new_filename = no_extension + '_' + str(idx) + '.jpg'
     return new_filename
