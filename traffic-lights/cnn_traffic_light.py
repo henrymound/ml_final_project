@@ -117,7 +117,7 @@ def parser_decode(record):
   parsed = tf.parse_single_example(record, keys_to_features)
   image = tf.decode_raw(parsed["image_raw"], tf.uint8)
   image = tf.cast(image, tf.float32)
-  print({'x': image})
+  #print({'x': image})
   return {'x': image}
 
 def prod_parse(record):

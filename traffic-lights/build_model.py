@@ -10,7 +10,6 @@ import numpy as np
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
 
-
 def train_input_fn():
     return input_fn(filenames=["train.tfrecords", "test.tfrecords"])
 

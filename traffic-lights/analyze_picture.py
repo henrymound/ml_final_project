@@ -105,12 +105,13 @@ def segment_image(image_path):
         string_img = _bytes_feature(processed_img.tostring())
         string_images.append(string_img.SerializeToString())
         feature = {
-            'image_raw': string_img
+            'x': string_img,
+            'label' : _int64_feature(0)
         }
         encoded_data = tf.train.Example(features=tf.train.Features(feature=feature))
         encoded_traffic_light_images.append(encoded_data)
 
-    return string_images
+    return encoded_traffic_light_images
     #print(encoded_traffic_light_images)
     #draw_prediction(image, class_ids[i], confidences[i], round(x), round(y), round(x+w), round(y+h), classes)
 
@@ -120,28 +121,23 @@ def segment_image(image_path):
     # cv2.imwrite("object-detection.jpg", image)
     # cv2.destroyAllWindows()
 
-def make_color_prediction(encoded_image_list):
-    predictors = list()
-    for string_img in encoded_image_list:
-        predictors.append(parser_decode(string_img))
-
+# Makes a prediction on one image
+def make_color_prediction(encoded_image):
 
     full_model_dir = 'model2/test/'
-    with tf.Session() as sess:
-        predict_fn = predictor.from_saved_model('output_model/1544369743')
-        #model_input = tf.train.Example(features=tf.train.Features( feature={"words": tf.train.Feature(int64_list=tf.train.Int64List(value=features_test_set)) }))
-        #model_input = model_input.SerializeToString()
-        #predictions = predict_fn(encoded_image_list[0])
-        #print(predictors[0])
-        #feed_dict = {'x': [predictors[0]]}
-        #predictions = predict_fn(feed_dict)
-        #print(predictions)
-        #classification = tf.run(y, feed_dict)
-        #print(classification)
+
+    predict_fn = predictor.from_saved_model('output_model/1544369743')
+    #print(encoded_image)
+    example = tf.train.Example(features=tf.train.Features(feature=encoded_image))
+    inputs = example.SerializeToString()
+    #print(encoded_image)
+    predictions = predict_fn({"x":[inputs]})
+
 
 if __name__=="__main__":
     traffic_lights=segment_image(sys.argv[1])
     new_traffic_lights = []
     for idx, img in enumerate(traffic_lights):
-        new_traffic_lights.append(cnn.prod_parse(img))
-    make_color_prediction(new_traffic_lights)
+        #new_traffic_lights.append(cnn.prod_parse(img))
+        #new_traffic_lights.append(cnn.parser_decode(img))
+        make_color_prediction(img)
